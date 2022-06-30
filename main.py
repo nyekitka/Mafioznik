@@ -48,11 +48,6 @@ def transform(wor, mode, person=None):
 		return p.make_agree_with_number(int(mode[2::])).word
 	return ''
 
-def get_nick(member:discord.Member):
-	if member.nick == None:
-		return member.name
-	else:
-		return member.nick
 
 
 @tasks.loop(hours=24)
@@ -184,36 +179,51 @@ async def on_raw_reaction_remove(payload):
 			print(repr(e))
 
 
-@bot.command()
+@bot.command(aliases=['помощь'])
 async def help(ctx, arg : str =''):
 	if arg == '':
 		emb=discord.Embed(title='Команды бота Мафиозник', colour=discord.Colour.random())
-		emb.add_field(name='Статистика мафия', value='`!help stats`')
 		emb.add_field(name='Дни рождения', value='`!help birthdays`')
+		emb.add_field(name='Разное', value='`!help other`')
 		if str(ctx.message.author.top_role) == 'Админ':
 			emb.add_field(name='Сообщения и реакции', value='`!help messages`')
+			emb.add_field(name='Управление пользователями', value='`!help user_management`')
 			await ctx.message.author.send(embed=emb)
 		else:
 			await ctx.reply(embed=emb)
 		print('Помощь: [Успех] Пользователь {0.display_name} получил список возможной информации'.format(ctx.message.author))
-	elif arg == 'stats':
-		if str(ctx.message.author.top_role) == 'Админ':
-			await ctx.message.author.send(embed=discord.Embed(title='Статистика мафии', description='Статистика ведётся следующим образом.\nМафия: количество убийств + 10*количество отхиленных самострелов\nКомиссар: количество правильных проверок\
-		 + количество дневных убийств мафии по наводке\nДоктор: количество верных лечений\n Мирный: количество прожитых дней\n`!add_points <роль> <участник> <очки>` - добавляет участнику за роль очки\n\
-		 `!set_points <роль> <участник> <количество очков>` - устанавливает участнику количество очков за роль\n`!stats_of <роль> <участник>` -  выводит статистику игрока за роль\n`!top <роль>` - выводит топ игроков за данную роль', colour=discord.Colour.random()))
-		else:
-			await ctx.reply(embed=discord.Embed(title='Статистика мафии', description='Статистика ведётся следующим образом.\nМафия: количество убийств + 10*количество отхиленных самострелов\nКомиссар: количество правильных проверок\
-		 + количество дневных убийств мафии по наводке\nДоктор: количество верных лечений\n Мирный: количество прожитых дней\n`!stats_of <роль> <участник>` -  выводит статистику игрока за роль\n`!top <роль>` - выводит топ игроков за данную роль', colour=discord.Colour.random()))
-		print('Помощь: [Успех] Пользователь {0.display_name} получил информацию по разделу Статистика'.format(ctx.message.author))
 	elif arg == 'birthdays':
 		if str(ctx.message.author.top_role) == 'Админ':
-			await ctx.message.author.send(embed=discord.Embed(title='Дни рождения', colour=discord.Colour.random(), description='`!set_birthday <участник> <дата рождения>` - устанавливает участнику дату рождения. Дата рождения вводится в формате YYYY-MM-DD\n`!change_birthday <участник> <дата>` - меняет день рождения участнику\n`!next_birthdays` - показывает ближайшие 10 дней рождений участников'))
+			await ctx.message.author.send(embed=discord.Embed(title='Дни рождения', colour=discord.Colour.random(), \
+				description='`!set_birthday <участник> <дата рождения>` - устанавливает участнику дату рождения. Дата рождения вводится в формате YYYY-MM-DD\
+				\n`!change_birthday <участник> <дата>` - меняет день рождения участнику\
+				\n`!next_birthdays` - показывает ближайшие 10 дней рождений участников\
+				\n`!birthday` <участник> - показывет день рождения участника'))
 		else:
-			await ctx.reply(embed=discord.Embed(title='Дни рождения', colour=discord.Colour.random(), description='`!next_birthdays` - показывает ближайшие 10 дней рождений участников'))
+			await ctx.reply(embed=discord.Embed(title='Дни рождения', colour=discord.Colour.random(), description='`!next_birthdays` - показывает ближайшие 10 дней рождений участников\
+				\n`!birthday <участник> - показывет день рождения участника'))
 		print('Помощь: [Успех] Пользователь {0.display_name} получил информацию по разделу Дни рождения'.format(ctx.message.author))
 	elif arg == 'messages' and str(ctx.message.author.top_role) == 'Админ':
-		await ctx.message.author.send(embed=discord.Embed(title='Сообщения и реакции', colour=discord.Colour.random(), description='`!write <сообщение>` - написать сообщение от имени бота\n`!react_to <ID> <эмодзи>` - добавить реакцию на пост с данным ID\n`!del_reaction <ID> <эмодзи>` - удаляет определённую реакцию с сообщения с данным ID'))
+		await ctx.message.author.send(embed=discord.Embed(title='Сообщения и реакции', colour=discord.Colour.random(), \
+			description='`!write <сообщение>` - написать сообщение от имени бота\
+			\n`!react_to <ID> <эмодзи>` - добавить реакцию на пост с данным ID\
+			\n`!del_reaction <ID> <эмодзи>` - удаляет определённую реакцию с сообщения с данным ID\
+			\n`!clear <число>` - удаляет указанное количество сообщений в данном канале'))
 		print('Помощь: [Успех] Пользователь {0.display_name} получил информацию по разделу Сообщения и реакции'.format(ctx.message.author))
+	elif arg == 'other':
+		await ctx.reply(embed=discord.Embed(title='Другие команды', colour=discord.Colour.random(), description=\
+			'`!kiss <участник>` - поцеловать участника\
+			\n`!punch <участник>` - ударить участника'))
+		print('Помощь: [Успех] Пользователь {0.display_name} получил информацию по разделу Другое'.format(ctx.message.author))
+	elif arg == 'user_management' and str(ctx.message.author.top_role) == 'Админ':
+		await ctx.message.author.send(embed=discord.Embed(title='Управление пользователями', colour = discord.Colour.random(), description=\
+			'`!kick <участник>` - кикнуть участника\n\
+			`!mute <участник>` - запретить пользователю писать в текстовых каналах\n\
+			`!voice_mute <участник>` - запретить пользователю заходить в голосовые чаты и говорить там\n\
+			`!unmute <участник>` - снимает запрет писать в текстовых каналах\n\
+			`!voice_unmute <участник>` - снимает запрет заходить на голосовые каналы и говорить там\n\
+			`!ban <участник>` - забанить участника'))
+		print('Помощь: [Успех] Пользователь {0.display_name} получил информацию по разделу Управление пользователями'.format(ctx.message.author))
 	else:
 		ctx.reply('Такой категории, как ' + arg + ' не существует')
 		print('Помощь: [Ошибка] Не существует категории {0}'.format(arg))
@@ -227,10 +237,10 @@ async def help(ctx, arg : str =''):
 async def kick(ctx, member:discord.Member, reason=None):
 	await ctx.channel.purge(limit = 1)
 	await member.kick(reason = reason)
-	emb = discord.Embed(title=f'Пользователь {get_nick(member)} был кикнут с сервера по причине \"{reason}\"', colour=discord.Colour.random())
+	emb = discord.Embed(title=f'Пользователь {member.display_name} был кикнут с сервера по причине \"{reason}\"', colour=discord.Colour.random())
 	emb.set_image(url=gifs.KickGIFs[randint(0, len(gifs.KickGIFs) - 1)])
 	await ctx.send(embed=emb)
-	print(f'[Кик]: Участник {get_nick(member)} был успешно кикнут')
+	print(f'[Кик]: Участник {member.display_name} был успешно кикнут')
 
 #ban
 @bot.command()
@@ -238,10 +248,10 @@ async def kick(ctx, member:discord.Member, reason=None):
 async def ban(ctx, member:discord.Member, reason=None):
 	await ctx.channel.purge(limit = 1)
 	await member.ban(reason = reason)
-	emb = discord.Embed(title=f'Пользователь {get_nick(member)} был забанен по причине \"{reason}\"', colour=discord.Colour.random())
+	emb = discord.Embed(title=f'Пользователь {member.display_name} был забанен по причине \"{reason}\"', colour=discord.Colour.random())
 	emb.set_image(url=gifs.BanGIFs[randint(0, len(gifs.BanGIFs) - 1)])
 	await ctx.send(embed=emb)
-	print(f'[Бан]: Участник {get_nick(member)} был успешно забанен')
+	print(f'[Бан]: Участник {member.display_name} был успешно забанен')
 
 
 #mute person in voice channels
@@ -251,10 +261,10 @@ async def voice_mute(ctx, member:discord.Member, reason=None):
 	await ctx.channel.purge(limit = 1)
 	vmute_role = utils.get(ctx.message.author.guild.roles, id=ids.VoiceMuteRole)
 	await member.add_roles(vmute_role)
-	emb = discord.Embed(title=f'Пользователь {get_nick(member)} теперь не может говорить в голосовых каналах сервера по причине \"{reason}\"', colour=discord.Colour.random())
+	emb = discord.Embed(title=f'Пользователь {member.display_name} теперь не может говорить в голосовых каналах сервера по причине \"{reason}\"', colour=discord.Colour.random())
 	emb.set_image(url=gifs.VoiceMuteGIFs[randint(0, len(gifs.VoiceMuteGIFs) - 1)])
 	await ctx.send(embed=emb)
-	print(f'[Голосовой мут]: Участник {get_nick(member)} был успешно замучен')
+	print(f'[Голосовой мут]: Участник {member.display_name} был успешно замучен')
 
 
 #mute in text channels
@@ -264,10 +274,10 @@ async def mute(ctx, member:discord.Member, reason=None):
 	await ctx.channel.purge(limit = 1)
 	mute_role = utils.get(ctx.message.author.guild.roles, id=ids.MuteRole)
 	await member.add_roles(mute_role)
-	emb = discord.Embed(title=f'Пользователь {get_nick(member)} теперь не может писать в текстовых каналах сервера по причине \"{reason}\"', colour=discord.Colour.random())
+	emb = discord.Embed(title=f'Пользователь {member.display_name} теперь не может писать в текстовых каналах сервера по причине \"{reason}\"', colour=discord.Colour.random())
 	emb.set_image(url=gifs.MuteGIFs[randint(0, len(gifs.MuteGIFs) - 1)])
 	await ctx.send(embed=emb)
-	print(f'[Голосовой мут]: Участник {get_nick(member)} был успешно замучен')
+	print(f'[Голосовой мут]: Участник {member.display_name} был успешно замучен')
 
 #unmute in voice channels
 @bot.command()
@@ -280,10 +290,10 @@ async def voice_unmute(ctx, member:discord.Member, reason=None):
 		print('[Анмьют] Пользователь не был замьючен в голосовых каналах')
 	else:
 		await member.remove_roles(vmute_role, reason=reason)
-		emb = discord.Embed(title=f'Пользователь {get_nick(member)} теперь может снова говорить в голосовых каналах!', colour=discord.Colour.random())
+		emb = discord.Embed(title=f'Пользователь {member.display_name} теперь может снова говорить в голосовых каналах!', colour=discord.Colour.random())
 		emb.set_image(url=gifs.UnMuteGIFs[randint(0, len(gifs.UnMuteGIFs))])
 		await ctx.send(embed=emb)
-		print(f'[Анмьют] Пользователь {get_nick(member)} был успешно размучен в голосовых каналах')
+		print(f'[Анмьют] Пользователь {member.display_name} был успешно размучен в голосовых каналах')
 
 #unmute in text channels
 @bot.command()
@@ -296,30 +306,30 @@ async def unmute(ctx, member:discord.Member, reason=None):
 		print('[Анмьют] Пользователь не был замьючен в текстовых каналах')
 	else:
 		await member.remove_roles(mute_role, reason=reason)
-		emb = discord.Embed(title=f'Пользователь {get_nick(member)} теперь может снова писать в текстовых каналах!', colour=discord.Colour.random())
+		emb = discord.Embed(title=f'Пользователь {member.display_name} теперь может снова писать в текстовых каналах!', colour=discord.Colour.random())
 		emb.set_image(url=gifs.UnMuteGIFs[randint(0, len(gifs.UnMuteGIFs))])
 		await ctx.send(embed=emb)
-		print(f'[Анмьют] Пользователь {get_nick(member)} был успешно размучен в текстовых каналах')
+		print(f'[Анмьют] Пользователь {member.display_name} был успешно размучен в текстовых каналах')
 
 ###############################################		fun		##############################################################
 
-@bot.command()
+@bot.command(aliases=['поцеловать', 'поцелуй'])
 async def kiss(ctx, member:discord.Member):
 	c = ''
 	if utils.get(ctx.message.author.guild.roles, id=ids.GirlRole) in ctx.message.author.roles: c = 'а'
 	emb = discord.Embed(title='Поцелуй', description=f'{ctx.message.author.mention} поцеловал{c} {member.mention}', colour = discord.Colour.magenta())
 	emb.set_image(url=gifs.KissGIFs[randint(0, len(gifs.KissGIFs) - 1)])
 	await ctx.send(embed=emb)
-	print(f'[Поцелуй] Пользователь {get_nick(ctx.message.author)} поцеловал{c} {get_nick(member)}')
+	print(f'[Поцелуй] Пользователь {get_nick(ctx.message.author)} поцеловал{c} {member.display_name}')
 
-@bot.command()
+@bot.command(aliases=['ударить', 'удар'])
 async def punch(ctx, member:discord.Member):
 	c = ''
 	if utils.get(ctx.message.author.guild.roles, id=ids.GirlRole) in ctx.message.author.roles: c = 'а'
 	emb = discord.Embed(title='Удар', description= f'{ctx.message.author.mention} ударил{c} {member.mention}', colour = discord.Colour.from_rgb(255, 238, 0))
 	emb.set_image(url=gifs.PunchGIFs[randint(0, len(gifs.PunchGIFs) - 1)])
 	await ctx.send(embed=emb)
-	print(f'[Удар] Пользователь {get_nick(ctx.message.author)} ударил{c} {get_nick(member)}')
+	print(f'[Удар] Пользователь {get_nick(ctx.message.author)} ударил{c} {member.display_name}')
 
 ###############################################		reactions/messages	#############################################################
 
@@ -382,8 +392,8 @@ async def set_birthday(ctx, user:discord.Member, dat:str):
 		return
 	left = days_left((user.id, dat))
 	w = morph.parse('день')[0]
-	await ctx.send(embed = discord.Embed(description='Я поздравлю **{0}** через {1} {2}'.format(get_nick(user), left, w.make_agree_with_number(left).word), colour=discord.Colour.green(), title='Добавление дня рождения произошло успешно'))
-	print('Пользователю {0} установлен день рождения: {1}'.format(get_nick(user), dat))
+	await ctx.send(embed = discord.Embed(description='Я поздравлю **{0}** через {1} {2}'.format(user.display_name, left, w.make_agree_with_number(left).word), colour=discord.Colour.green(), title='Добавление дня рождения произошло успешно'))
+	print('Пользователю {0} установлен день рождения: {1}'.format(user.display_name, dat))
 
 
 @bot.command()
@@ -405,8 +415,8 @@ async def change_birthday(ctx, user: discord.Member, dat:str):
 	db.commit()
 	left = days_left((user.id, dat))
 	w = morph.parse('день')[0]
-	await ctx.send(embed=discord.Embed(description='Изменение дня рождения произошло успешно. Я поздравлю **{0}** через {1} {2}'.format(get_nick(user), left, w.make_agree_with_number(left).word), title='Изменение дня рождения', colour=discord.Colour.green()))
-	print('Пользователю {0} установлен день рождения: {1}'.format(get_nick(user), dat))
+	await ctx.send(embed=discord.Embed(description='Изменение дня рождения произошло успешно. Я поздравлю **{0}** через {1} {2}'.format(user.display_name, left, w.make_agree_with_number(left).word), title='Изменение дня рождения', colour=discord.Colour.green()))
+	print('Пользователю {0} установлен день рождения: {1}'.format(user.display_name, dat))
 
 @bot.command()
 async def next_birthdays(ctx):
@@ -418,23 +428,23 @@ async def next_birthdays(ctx):
 	w = morph.parse("день")[0]
 	for mem in bdays.items():
 		member = await Members[0].guild.fetch_member(mem[0][0])
-		descr += '{0}) **{1}** - {2} {3} (через {4} {5})\n'.format(i, get_nick(member), int(mem[0][1][8::]), morph.parse(NameOfMonths[int(mem[0][1][5:7:])][0])[0].inflect({'gent'}).word, mem[1], w.make_agree_with_number(mem[1]).word)
+		descr += '{0}) **{1}** - {2} {3} (через {4} {5})\n'.format(i, member.display_name, int(mem[0][1][8::]), morph.parse(NameOfMonths[int(mem[0][1][5:7:])][0])[0].inflect({'gent'}).word, mem[1], w.make_agree_with_number(mem[1]).word)
 		i += 1
 	await ctx.send(embed=discord.Embed(description=descr, title='Ближайшие дни рождения', colour=discord.Colour.teal()))
 	print('Список следующих десяти дней рождений выведен успешно')
 
-@bot.command()
+@bot.command(aliases=['др', 'день_рождения', 'день-рождения'])
 async def birthday (ctx, member:discord.Member):
 	today = datetime.now(tz=msk)
 	bday = tuple(cursor.execute("SELECT * FROM birthdays WHERE id = ?", (member.id,)))
 	if len(bday) == 0:
-		emb = discord.Embed(title=f'У {get_nick(member)} не установлено дня рождения', colour=discord.Colour.random())
+		emb = discord.Embed(title=f'У {member.display_name} не установлено дня рождения', colour=discord.Colour.random())
 		emb.set_image(url=member.avatar_url)
 	else:
 		bday = bday[0]
 		day = morph.parse('день')[0]
 		month = morph.parse(NameOfMonths[int(bday[1][5:7:])][0])[0]
-		emb = discord.Embed(title='У {0} день рождения {1} {2} (будет через {3} {4})'.format(get_nick(member), int(bday[1][8::]), month.inflect({'gent'}).word, days_left(bday), day.make_agree_with_number(days_left(bday)).word), colour=discord.Colour.random())
+		emb = discord.Embed(title='У {0} день рождения {1} {2} (будет через {3} {4})'.format(member.display_name, int(bday[1][8::]), month.inflect({'gent'}).word, days_left(bday), day.make_agree_with_number(days_left(bday)).word), colour=discord.Colour.random())
 		emb.set_image(url=member.avatar_url)
 	await ctx.send(embed=emb)
 	print('[Получение дня рождения] День рождения получен успешно')
