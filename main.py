@@ -8,15 +8,16 @@ from birthday import NameOfMonths, Greetings, days_left
 from datetime import datetime, time, timedelta, date, timezone
 from random import randint
 import pymorphy2
-import sqlite3
+import psycopg2
 import gifs, ids
 
+DB_URI = "postgres://wekhaeduhjfgdq:a818bfc043503eda3165d29c7ced0453f291eeaa4af82d16a9945e391dfa5e4a@ec2-52-49-120-150.eu-west-1.compute.amazonaws.com:5432/dc39934i40p5ji"
 intents = discord.Intents.default()
 intents.members = True
 msk = timezone(offset=timedelta(hours=3), name='МСК')
 bot = commands.Bot(command_prefix='!', intents=intents)
 morph = pymorphy2.MorphAnalyzer()
-db = sqlite3.connect('database.db')
+db = psycopg2.connect(DB_URI, sslmode='require')
 cursor = db.cursor()
 
 
@@ -109,11 +110,6 @@ async def on_ready():
 	for member in bot.get_all_members():
 		if not member.bot:
 			Members.append(member)
-	cursor.execute("""CREATE TABLE IF NOT EXISTS birthdays (
-			id BIGINT NOT NULL,
-			birthday VARCHAR(10),
-			PRIMARY KEY(id)
-		)""")
 	called_once_a_day.start()
 	print('Я уже выехал, отец')
 
@@ -384,7 +380,7 @@ async def set_birthday(ctx, user:discord.Member, dat:str):
 		await ctx.send(embed = discord.Embed(description='Произошла ошибка', title='Добавление дня рождения не удалось', colour=discord.Colour.red()))
 		return
 	try:
-		cursor.execute("INSERT INTO birthdays (id, birthday) VALUES (?, ?)", (user.id, dat))
+		cursor.execute("INSERT INTO birthdays (id, birthday) VALUES (%s, %s)", (user.id, dat))
 		db.commit()
 	except sqlite3.IntegrityError as err:
 		print('Ошибка: Такой пользователь уже есть в базе данных')
@@ -411,7 +407,7 @@ async def change_birthday(ctx, user: discord.Member, dat:str):
 		print('Неверный формат даты рождения')
 		await ctx.send(embed = discord.Embed(description='Произошла ошибка', title='Изменение дня рождения не удалось', colour=discord.Colour.red()))
 		return
-	cursor.execute("UPDATE birthdays SET birthday = ? WHERE id = ?", (dat, user.id))
+	cursor.execute("UPDATE birthdays SET birthday = %s WHERE id = %s", (dat, user.id))
 	db.commit()
 	left = days_left((user.id, dat))
 	w = morph.parse('день')[0]
@@ -436,7 +432,7 @@ async def next_birthdays(ctx):
 @bot.command(aliases=['др', 'день_рождения', 'день-рождения'])
 async def birthday (ctx, member:discord.Member):
 	today = datetime.now(tz=msk)
-	bday = tuple(cursor.execute("SELECT * FROM birthdays WHERE id = ?", (member.id,)))
+	bday = tuple(cursor.execute("SELECT * FROM birthdays WHERE id = %s", (member.id,)))
 	if len(bday) == 0:
 		emb = discord.Embed(title=f'У {member.display_name} не установлено дня рождения', colour=discord.Colour.random())
 		emb.set_image(url=member.avatar_url)
