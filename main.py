@@ -3,13 +3,13 @@ from discord import utils
 from discord.utils import get
 from discord.ext import commands, tasks
 import os, sys, asyncio
-import get_roles
+from Cybernator import Paginator as pag
 from birthday import NameOfMonths, Greetings, days_left
 from datetime import datetime, time, timedelta, date, timezone
 from random import randint
 import pymorphy2
 import psycopg2
-import gifs, ids
+import gifs, ids, levels, get_roles
 
 DB_URI = "postgres://wekhaeduhjfgdq:a818bfc043503eda3165d29c7ced0453f291eeaa4af82d16a9945e391dfa5e4a@ec2-52-49-120-150.eu-west-1.compute.amazonaws.com:5432/dc39934i40p5ji"
 intents = discord.Intents.default()
@@ -22,7 +22,10 @@ cursor = db.cursor()
 
 
 Members = []
+InVoiceChannels = {}
 bot.remove_command('help')
+
+################################################	help functions	####################################################
 
 def transform(wor, mode, person=None):
 	morph = pymorphy2.MorphAnalyzer()
@@ -49,7 +52,20 @@ def transform(wor, mode, person=None):
 		return p.make_agree_with_number(int(mode[2::])).word
 	return ''
 
+def give_xp(number, member):
+	cursor.execute("UPDATE levels SET exp = exp + %s WHERE id = %s", (number, member.id))
+		cursor.execute("SELECT lvl, exp FROM levels WHERE id = %s", (member.id,))
+		cur_condition = cursor.fetchone()
+		dif = levels.check_level(cur_condition[0], cur_condition[1])
+		if dif != 0:
+			cursor.execute("UPDATE levels SET lvl = lvl + %s WHERE id = %s", (dif, member.id))
+			old_role = utils.get(message.guild.roles, id = ids.titles[cur_condition[0]])
+			new_role = utils.get(message.guild.roles, id = ids.titles[cur_condition[0] + dif])
+			message.author.send(f'Хорошая работа, {member.mention}, ты достиг {cur_condition[0] + dif} уровня! Теперь твое звание - {new_role.name}')
+			message.author.remove_roles(old_role)
+			message.author.add_roles(new_role)
 
+############################################	called once a day 	################################################
 
 @tasks.loop(hours=24)
 async def called_once_a_day():
@@ -103,7 +119,7 @@ async def called_once_a_day():
 			await channel.send(embed=emb)
 
 
-
+#################################################	events	#################################################
 
 @bot.event
 async def on_ready():
@@ -115,21 +131,21 @@ async def on_ready():
 
 @bot.event
 async def on_raw_reaction_add(payload):
-	channel = bot.get_channel(payload.channel_id) # получаем объект канала
-	message = await channel.fetch_message(payload.message_id) # получаем объект сообщения
-	member = utils.get(message.guild.members, id=payload.user_id) # получаем объект пользователя который поставил реакцию
+	channel = bot.get_channel(payload.channel_id) 
+	message = await channel.fetch_message(payload.message_id)
+	member = utils.get(message.guild.members, id=payload.user_id)
 	if payload.message_id == get_roles.PostID1:
 		try:
-			emoji = str(payload.emoji) # эмоджик который выбрал юзер
-			role = utils.get(message.guild.roles, id=get_roles.Roles1[emoji]) # объект выбранной роли (если есть)
+			emoji = str(payload.emoji)
+			role = utils.get(message.guild.roles, id=get_roles.Roles1[emoji])
 			if(len([i for i in member.roles if i.id in get_roles.CountableRoles1]) < get_roles.MaxRolesPerUser or member.id in get_roles.ExcUsers):	
 				await member.add_roles(role)
-				print('Добавление ролей: [Успех] Пользователю {0.display_name} была выдана роль {1.name}'.format(member, role))
+				print('[Добавление ролей] Пользователю {0.display_name} была выдана роль {1.name}'.format(member, role))
 			else:
 				await message.remove_reaction(payload.emoji, member)
-				print('Добавление ролей: [Ошибка] Слишком много ролей у пользователя {0.display_name}'.format(member))
+				print('[Добавление ролей] Слишком много ролей у пользователя {0.display_name}'.format(member))
 		except KeyError as e:
-			print('Добавление ролей: [Ошибка] Не найдено ролей для ' + emoji)
+			print('[Добавление ролей] Не найдено ролей для ' + emoji)
 		except Exception as e:
 			print(repr(e))
 	elif payload.message_id == get_roles.PostID2:
@@ -138,12 +154,12 @@ async def on_raw_reaction_add(payload):
 			role = utils.get(message.guild.roles, id=get_roles.Roles2[emoji]) # объект выбранной роли (если есть)
 			if(len([i for i in member.roles if i.id in get_roles.CountableRoles2]) < get_roles.MaxRolesPerUser or member.id in get_roles.ExcUsers):	
 				await member.add_roles(role)
-				print('Добавление ролей: [Успех] Пользователю {0.display_name} была выдана роль {1.name}'.format(member, role))
+				print('[Добавление ролей] Пользователю {0.display_name} была выдана роль {1.name}'.format(member, role))
 			else:
 				await message.remove_reaction(payload.emoji, member)
-				print('Добавление ролей: [Ошибка] Слишком много ролей у пользователя {0.display_name}'.format(member))
+				print('[Добавление ролей] Слишком много ролей у пользователя {0.display_name}'.format(member))
 		except KeyError as e:
-			print('Добавление ролей: [Ошибка] Не найдено ролей для ' + emoji)
+			print('[Добавление ролей] Не найдено ролей для ' + emoji)
 		except Exception as e:
 			print(repr(e))
 
@@ -174,6 +190,34 @@ async def on_raw_reaction_remove(payload):
 		except Exception as e:
 			print(repr(e))
 
+@bot.event()
+async def on_member_join(member):
+	channel = bot.get_channel(ids.GreetingsChannel)
+	await channel.send(f'Привет, {member.mention}. Добро пожаловать в нашу банду!')
+	cursor.execute("INSERT INTO levels (id, lvl, exp) VALUES (%s, 0, 0)", (member.id, ))
+	member.add_roles(utils.get(member.guild.roles, id=ids.titles[0]), utils.get(member.guild.roles, id=ids.TitleRole))
+
+
+@bot.event()
+async def on_message(message):
+	author_id = message.author.id
+	cursor.execute("SELECT id FROM levels WHERE id = %s", (author_id,))
+	if not cursor.fetchone():
+		cursor.execute("INSERT INTO levels (id, exp, lvl) VALUES (%s, 1, 0)", (author_id,))
+		db.commit()
+	else:
+		give_xp(1, message.author)
+
+@bot.event
+async def on_voice_state_update(member, before, after):
+	if before.channel is None and after.channel is not None:
+		InVoiceChannels[member] = datetime.now(tz=msk)
+	elif before.channel is not None and after.channel is None:
+		spent_time = datetime.now(tz=msk) - InVoiceChannels[member]
+		del InVoiceChannels[member]
+		give_xp(spent_time.total_seconds() // 120, member)
+
+###################################################		help	####################################################
 
 @bot.command(aliases=['помощь'])
 async def help(ctx, arg : str =''):
@@ -316,7 +360,7 @@ async def kiss(ctx, member:discord.Member):
 	emb = discord.Embed(title='Поцелуй', description=f'{ctx.message.author.mention} поцеловал{c} {member.mention}', colour = discord.Colour.magenta())
 	emb.set_image(url=gifs.KissGIFs[randint(0, len(gifs.KissGIFs) - 1)])
 	await ctx.send(embed=emb)
-	print(f'[Поцелуй] Пользователь {get_nick(ctx.message.author)} поцеловал{c} {member.display_name}')
+	print(f'[Поцелуй] Пользователь {ctx.message.author.display_name} поцеловал{c} {member.display_name}')
 
 @bot.command(aliases=['ударить', 'удар'])
 async def punch(ctx, member:discord.Member):
@@ -325,7 +369,7 @@ async def punch(ctx, member:discord.Member):
 	emb = discord.Embed(title='Удар', description= f'{ctx.message.author.mention} ударил{c} {member.mention}', colour = discord.Colour.from_rgb(255, 238, 0))
 	emb.set_image(url=gifs.PunchGIFs[randint(0, len(gifs.PunchGIFs) - 1)])
 	await ctx.send(embed=emb)
-	print(f'[Удар] Пользователь {get_nick(ctx.message.author)} ударил{c} {member.display_name}')
+	print(f'[Удар] Пользователь {ctx.message.author.display_name} ударил{c} {member.display_name}')
 
 ###############################################		reactions/messages	#############################################################
 
@@ -453,5 +497,58 @@ async def birthday (ctx, member:discord.Member):
 		emb.set_image(url=member.avatar_url)
 	await ctx.send(embed=emb)
 	print('[Получение дня рождения] День рождения получен успешно')
+
+##############################################################		levels and stats 	#################################################################################
+
+@bot.command()
+async def stats(ctx, member = None):
+	if member is None:
+		member = ctx.message.author
+	elif not isinstance(member, discord.Member):
+		print('[Статистика] Был передан неверный аргумент')
+		await ctx.reply('Неправильное использование команды. Для уточнения `!help stats`')
+		return
+	cursor.execute("SELECT (id, lvl, exp) FROM levels WHERE id = %s", (member.id, ))
+	info = cursor.fetchone()
+	cursor.execute("SELECT * FROM levels ORDER BY exp")
+	table = cursor.fetchall()
+	rank = table.index(info)
+	lane = exp_lane(info[1], info[2])
+	emb = discord.Embed(title=f'Уровень участника **{member.display_name}**', description=f'Уровень **{info[1]}**    Ранг **#{rank}**\n{lane} {info[2]}/{levels.levels_exp[info[1] + 1]} EXP')
+	emb.set_thumbnail(url=member.avatar_url)
+	await ctx.reply(embed=emb)
+	print(f'[Статистика] Пользователь {ctx.message.author.display_name} получил статистику по пользователю {member.display_name}')
+
+@bot.command()
+async def rating(ctx):
+	cursor.execute("SELECT * FROM levels WHERE exp <> 0")
+	rating = cursor.fetchall()
+	size = len(rating)
+	embeds = []
+	i = 1
+	while len(rating) > 0:
+		page = None
+		if len(rating) < 10:
+			page = rating
+			rating = []
+		else:
+			page = rating[:10:]
+			rating = rating[10::]
+		description = ''
+		while i % 10 != 0 and i <= size:
+			person = utils.get(ctx.message.guild.members, page[(i - 1)%10][0])
+			supplement = ''
+			if i == 1: supplement = ':first_place:'
+			elif i ==2: supplement = ':second_place:'
+			elif i == 3: supplement = ':third_place:'
+			description += f'{supplement}**#{i}.{person.display_name}**\n**Уровень:** {page[(i - 1) % 10][1]} | **Опыт:** {page[(i - 1)%10][2]}\n'
+			i += 1
+		embed = discord.Embed(title='🏆 Рейтинг участников', description=description)
+		embed.set_thumbnail(url=Member[0].guild.icon_url)
+		embeds.append(embed)
+	message = await ctx.reply(embed=embeds[0])
+	paginator = pag(bot, message, only=ctx.author, embeds=embeds, use_more=False)
+	await paginator.start()
+#############################################################################################
 
 bot.run(os.getenv('TOKEN'))
