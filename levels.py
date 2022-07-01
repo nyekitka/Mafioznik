@@ -26,15 +26,15 @@ def check_level(cur_lvl, exp):
 		return 0
 	else:
 		new_lvl = cur_lvl
-		while levels_exp[new_lvl] > exp:
+		while levels_exp[new_lvl] <= exp:
 			new_lvl += 1
 		new_lvl -= 1
 		return new_lvl - cur_lvl
 
 def exp_lane(cur_lvl, exp):
 	if cur_lvl == 20:
-		return '▣'*50
+		return '▣'*20
 	else:
-		percent = round(((exp - levels_exp[cur_lvl])/(levels_exp[cur_lvl + 1] - levels_exp[cur_lvl]))*50)
-		return '▣'*percent + '☐'*(50 - percent)
+		percent = round(((exp - levels_exp[cur_lvl])/(levels_exp[cur_lvl + 1] - levels_exp[cur_lvl]))*20)
+		return '▣'*percent + '☐'*(20 - percent)
 

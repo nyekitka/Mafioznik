@@ -52,18 +52,23 @@ def transform(wor, mode, person=None):
 		return p.make_agree_with_number(int(mode[2::])).word
 	return ''
 
-def give_xp(number, member):
+async def give_xp(number:int, member:discord.Member):
+	print(f'Я в give_xp, number = {number}, member = {member.display_name}')
 	cursor.execute("UPDATE levels SET exp = exp + %s WHERE id = %s", (number, member.id))
-		cursor.execute("SELECT lvl, exp FROM levels WHERE id = %s", (member.id,))
-		cur_condition = cursor.fetchone()
-		dif = levels.check_level(cur_condition[0], cur_condition[1])
-		if dif != 0:
-			cursor.execute("UPDATE levels SET lvl = lvl + %s WHERE id = %s", (dif, member.id))
-			old_role = utils.get(message.guild.roles, id = ids.titles[cur_condition[0]])
-			new_role = utils.get(message.guild.roles, id = ids.titles[cur_condition[0] + dif])
-			message.author.send(f'Хорошая работа, {member.mention}, ты достиг {cur_condition[0] + dif} уровня! Теперь твое звание - {new_role.name}')
-			message.author.remove_roles(old_role)
-			message.author.add_roles(new_role)
+	db.commit()
+	cursor.execute("SELECT lvl, exp FROM levels WHERE id = %s", (member.id,))
+	cur_condition = cursor.fetchone()
+	print(f'Добавил exp, нынешнее состояние: exp = {cur_condition[1]}, lvl = {cur_condition[0]}')
+	dif = levels.check_level(cur_condition[0], cur_condition[1])
+	print(f'Вычислил разницу, она составляет {dif}')
+	if dif != 0:
+		cursor.execute("UPDATE levels SET lvl = lvl + %s WHERE id = %s", (dif, member.id))
+		db.commit()
+		old_role = utils.get(member.guild.roles, id = ids.titles[cur_condition[0]])
+		new_role = utils.get(member.guild.roles, id = ids.titles[cur_condition[0] + dif])
+		await member.send(f'Хорошая работа, {member.mention}, ты достиг {cur_condition[0] + dif} уровня! Теперь твое звание - {new_role.name}')
+		await member.remove_roles(old_role)
+		await member.add_roles(new_role)
 
 ############################################	called once a day 	################################################
 
@@ -72,7 +77,9 @@ async def called_once_a_day():
 	print('Ежедневная проверка событий: {0}'.format(str(datetime.now(tz=msk))))
 	today = datetime.now(tz=msk)
 	bdrole = utils.get(Members[0].guild.roles, id=ids.BirthdayRole)
-	for line in cursor.execute("SELECT * FROM birthdays"):
+	cursor.execute("SELECT * FROM birthdays")
+	data = cursor.fetchall()
+	for line in data:
 		if int(line[1][8::]) == (today - timedelta(days=1)).day and int(line[1][5:7:]) == (today - timedelta(days=1)).month:
 			member = await Members[0].guild.fetch_member(line[0])
 			await member.remove_roles(bdrole, reason='Он/она больше не именниник')
@@ -134,6 +141,7 @@ async def on_raw_reaction_add(payload):
 	channel = bot.get_channel(payload.channel_id) 
 	message = await channel.fetch_message(payload.message_id)
 	member = utils.get(message.guild.members, id=payload.user_id)
+	if member.bot: return
 	if payload.message_id == get_roles.PostID1:
 		try:
 			emoji = str(payload.emoji)
@@ -169,6 +177,7 @@ async def on_raw_reaction_remove(payload):
 	channel = bot.get_channel(payload.channel_id) # получаем объект канала
 	message = await channel.fetch_message(payload.message_id) # получаем объект сообщения
 	member = utils.get(message.guild.members, id=payload.user_id) # получаем объект пользователя который поставил реакцию
+	if member.bot: return
 	if payload.message_id == get_roles.PostID1:
 		try:
 			emoji = str(payload.emoji) # эмоджик который выбрал юзер
@@ -190,32 +199,42 @@ async def on_raw_reaction_remove(payload):
 		except Exception as e:
 			print(repr(e))
 
-@bot.event()
+@bot.event
 async def on_member_join(member):
+	if member.bot: return
 	channel = bot.get_channel(ids.GreetingsChannel)
 	await channel.send(f'Привет, {member.mention}. Добро пожаловать в нашу банду!')
 	cursor.execute("INSERT INTO levels (id, lvl, exp) VALUES (%s, 0, 0)", (member.id, ))
+	db.commit()
 	member.add_roles(utils.get(member.guild.roles, id=ids.titles[0]), utils.get(member.guild.roles, id=ids.TitleRole))
 
 
-@bot.event()
+@bot.event
 async def on_message(message):
+	print(f'Поступило сообщение: {message.content}. Автор: {message.author.display_name}')
+	if message.author.bot: return
 	author_id = message.author.id
 	cursor.execute("SELECT id FROM levels WHERE id = %s", (author_id,))
-	if not cursor.fetchone():
-		cursor.execute("INSERT INTO levels (id, exp, lvl) VALUES (%s, 1, 0)", (author_id,))
+	result = cursor.fetchone()
+	print(f'Я получил строчку из бд: {result}')
+	if not result:
+		print('Я в if not result')
+		cursor.execute("INSERT INTO levels (id, exp, lvl) VALUES (%s, 1, 1)", (author_id,))
 		db.commit()
 	else:
-		give_xp(1, message.author)
+		print('Я в else, хочу дать 1 exp')
+		await give_xp(1, message.author)
+	await bot.process_commands(message)
 
 @bot.event
 async def on_voice_state_update(member, before, after):
+	if member.bot: return
 	if before.channel is None and after.channel is not None:
 		InVoiceChannels[member] = datetime.now(tz=msk)
 	elif before.channel is not None and after.channel is None:
 		spent_time = datetime.now(tz=msk) - InVoiceChannels[member]
 		del InVoiceChannels[member]
-		give_xp(spent_time.total_seconds() // 120, member)
+		await give_xp(spent_time.total_seconds() // 120, member)
 
 ###################################################		help	####################################################
 
@@ -508,13 +527,13 @@ async def stats(ctx, member = None):
 		print('[Статистика] Был передан неверный аргумент')
 		await ctx.reply('Неправильное использование команды. Для уточнения `!help stats`')
 		return
-	cursor.execute("SELECT (id, lvl, exp) FROM levels WHERE id = %s", (member.id, ))
+	cursor.execute("SELECT * FROM levels WHERE id = %s", (member.id, ))
 	info = cursor.fetchone()
-	cursor.execute("SELECT * FROM levels ORDER BY exp")
+	cursor.execute("SELECT * FROM levels ORDER BY exp DESC")
 	table = cursor.fetchall()
-	rank = table.index(info)
-	lane = exp_lane(info[1], info[2])
-	emb = discord.Embed(title=f'Уровень участника **{member.display_name}**', description=f'Уровень **{info[1]}**    Ранг **#{rank}**\n{lane} {info[2]}/{levels.levels_exp[info[1] + 1]} EXP')
+	rank = table.index(info) + 1
+	lane = levels.exp_lane(info[2], info[1])
+	emb = discord.Embed(title=f'Уровень участника **{member.display_name}**', description=f'Уровень **{info[2]}**    Ранг **#{rank}**\n{lane} {info[1]}/{levels.levels_exp[info[2] + 1]} EXP')
 	emb.set_thumbnail(url=member.avatar_url)
 	await ctx.reply(embed=emb)
 	print(f'[Статистика] Пользователь {ctx.message.author.display_name} получил статистику по пользователю {member.display_name}')
@@ -536,15 +555,15 @@ async def rating(ctx):
 			rating = rating[10::]
 		description = ''
 		while i % 10 != 0 and i <= size:
-			person = utils.get(ctx.message.guild.members, page[(i - 1)%10][0])
+			person = utils.get(ctx.message.guild.members, id=page[(i - 1)%10][0])
 			supplement = ''
 			if i == 1: supplement = ':first_place:'
 			elif i ==2: supplement = ':second_place:'
 			elif i == 3: supplement = ':third_place:'
-			description += f'{supplement}**#{i}.{person.display_name}**\n**Уровень:** {page[(i - 1) % 10][1]} | **Опыт:** {page[(i - 1)%10][2]}\n'
+			description += f'{supplement}**#{i}.{person.display_name}**\n**Уровень:** {page[(i - 1) % 10][2]} | **Опыт:** {page[(i - 1)%10][1]}\n'
 			i += 1
 		embed = discord.Embed(title='🏆 Рейтинг участников', description=description)
-		embed.set_thumbnail(url=Member[0].guild.icon_url)
+		embed.set_thumbnail(url=Members[0].guild.icon_url)
 		embeds.append(embed)
 	message = await ctx.reply(embed=embeds[0])
 	paginator = pag(bot, message, only=ctx.author, embeds=embeds, use_more=False)
