@@ -379,12 +379,14 @@ async def set_birthday(ctx, user:discord.Member, dat:str):
 		print('Ошибка: Неверный формат даты рождения')
 		await ctx.send(embed = discord.Embed(description='Произошла ошибка', title='Добавление дня рождения не удалось', colour=discord.Colour.red()))
 		return
-	try:
+	cursor.execute("SELECT id FROM birthdays WHERE id = %s", (user.id, ))
+	result = cursor.fetchone()
+	if not result:
 		cursor.execute("INSERT INTO birthdays (id, birthday) VALUES (%s, %s)", (user.id, dat))
 		db.commit()
-	except sqlite3.IntegrityError as err:
+	else:
 		print('Ошибка: Такой пользователь уже есть в базе данных')
-		await ctx.send(embed = discord.Embed(description='Произошла ошибка', title='Добавление дня рождения не удалось, т.к. у данного пользователя уже установлен день рождения. Чтобы изменить его, воспользуйтесь командой !change_birthday', colour=discord.Colour.red()))
+		await ctx.send(embed = discord.Embed(title='Произошла ошибка', description='Добавление дня рождения не удалось, т.к. у данного пользователя уже установлен день рождения. Чтобы изменить его, воспользуйтесь командой !change_birthday', colour=discord.Colour.red()))
 		return
 	left = days_left((user.id, dat))
 	w = morph.parse('день')[0]
@@ -398,15 +400,20 @@ async def change_birthday(ctx, user: discord.Member, dat:str):
 	await ctx.channel.purge(limit = 1)
 	if len(dat) != 10:
 		print('Неверный формат даты рождения: длина даты != 10')
-		await ctx.send(embed = discord.Embed(description='Произошла ошибка', title='Изменение дня рождения не удалось', colour=discord.Colour.red()))
+		await ctx.send(embed = discord.Embed(title='Произошла ошибка', description='Изменение дня рождения не удалось', colour=discord.Colour.red()))
 		return
 	day = None
 	try:
 		day = date(year = int(dat[:4:]), month = int(dat[5:7:]), day = int(dat[8::]))
 	except:
 		print('Неверный формат даты рождения')
-		await ctx.send(embed = discord.Embed(description='Произошла ошибка', title='Изменение дня рождения не удалось', colour=discord.Colour.red()))
+		await ctx.send(embed = discord.Embed(title='Произошла ошибка', description='Изменение дня рождения не удалось', colour=discord.Colour.red()))
 		return
+	cursor.execute("SELECT id FROM birthdays WHERE id = %s", (user.id, ))
+	result = cursor.fetchone()
+	if not result:
+		await ctx.send(embed = discord.Embed(description='Произошла ошибка', title='Изменение дня рождения не удалось, т.к. у данного пользователя не установлен день рождения. Чтобы установить его, воспользуйтесь командой !set_birthday', colour=discord.Colour.red()))
+		print('[Изменение дня рождения] Ошибка: у данного пользователя уже установлен день рождения')
 	cursor.execute("UPDATE birthdays SET birthday = %s WHERE id = %s", (dat, user.id))
 	db.commit()
 	left = days_left((user.id, dat))
@@ -418,7 +425,8 @@ async def change_birthday(ctx, user: discord.Member, dat:str):
 async def next_birthdays(ctx):
 	await ctx.channel.purge(limit = 1)
 	today = datetime.now(tz=msk)
-	bdays = {i : days_left(i) for i in sorted(list(cursor.execute("SELECT * FROM birthdays")),key=days_left)[:10:]}
+	cursor.execute("SELECT * FROM birthdays")
+	bdays = {i : days_left(i) for i in sorted(cursor.fetchall(),key=days_left)[:10:]}
 	descr = ''
 	i = 1
 	w = morph.parse("день")[0]
@@ -432,7 +440,8 @@ async def next_birthdays(ctx):
 @bot.command(aliases=['др', 'день_рождения', 'день-рождения'])
 async def birthday (ctx, member:discord.Member):
 	today = datetime.now(tz=msk)
-	bday = tuple(cursor.execute("SELECT * FROM birthdays WHERE id = %s", (member.id,)))
+	cursor.execute("SELECT * FROM birthdays WHERE id = %s", (member.id,))
+	bday = cursor.fetchall()
 	if len(bday) == 0:
 		emb = discord.Embed(title=f'У {member.display_name} не установлено дня рождения', colour=discord.Colour.random())
 		emb.set_image(url=member.avatar_url)
