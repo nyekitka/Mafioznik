@@ -344,7 +344,7 @@ async def write(ctx, *, msg):
 #clear messages in the channel
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def clear(ctx, number = 1):
+async def clear(ctx, number = 2):
 	await ctx.channel.purge(limit=number)
 	w = morph.parse('сообщение')[0]
 	print(f'[Удаление сообщений] Удаление {number} {w.make_agree_with_number(number).word} произошло успешно')
