@@ -244,6 +244,7 @@ async def help(ctx, arg : str =''):
 		emb=discord.Embed(title='Команды бота Мафиозник', colour=discord.Colour.random())
 		emb.add_field(name='Дни рождения', value='`!help birthdays`')
 		emb.add_field(name='Разное', value='`!help other`')
+		emb.add_field(name='Статистика пользователей', value='`!help stats`')
 		if str(ctx.message.author.top_role) == 'Админ':
 			emb.add_field(name='Сообщения и реакции', value='`!help messages`')
 			emb.add_field(name='Управление пользователями', value='`!help user_management`')
@@ -283,6 +284,12 @@ async def help(ctx, arg : str =''):
 			`!voice_unmute <участник>` - снимает запрет заходить на голосовые каналы и говорить там\n\
 			`!ban <участник>` - забанить участника'))
 		print('Помощь: [Успех] Пользователь {0.display_name} получил информацию по разделу Управление пользователями'.format(ctx.message.author))
+	elif arg == 'stats':
+		await ctx.reply(embed=discord.Embed(title='Статистика пользователей', colour=discord.Colour.random(), description=\
+			'`!stats` - собственная статистика\n\
+			`!stats <участник>` - статистика участника\n\
+			`!rating` - рейтинг участников по уровням'))
+		print('Помощь: [Успех] Пользователь {0.display_name} получил информацию по разделу Статистика пользователей'.format(ctx.message.author))
 	else:
 		ctx.reply('Такой категории, как ' + arg + ' не существует')
 		print('Помощь: [Ошибка] Не существует категории {0}'.format(arg))
@@ -378,7 +385,7 @@ async def kiss(ctx, member:discord.Member):
 	if utils.get(ctx.message.author.guild.roles, id=ids.GirlRole) in ctx.message.author.roles: c = 'а'
 	emb = discord.Embed(title='Поцелуй', description=f'{ctx.message.author.mention} поцеловал{c} {member.mention}', colour = discord.Colour.magenta())
 	emb.set_image(url=gifs.KissGIFs[randint(0, len(gifs.KissGIFs) - 1)])
-	await ctx.send(embed=emb)
+	await ctx.reply(embed=emb)
 	print(f'[Поцелуй] Пользователь {ctx.message.author.display_name} поцеловал{c} {member.display_name}')
 
 @bot.command(aliases=['ударить', 'удар'])
@@ -387,7 +394,7 @@ async def punch(ctx, member:discord.Member):
 	if utils.get(ctx.message.author.guild.roles, id=ids.GirlRole) in ctx.message.author.roles: c = 'а'
 	emb = discord.Embed(title='Удар', description= f'{ctx.message.author.mention} ударил{c} {member.mention}', colour = discord.Colour.from_rgb(255, 238, 0))
 	emb.set_image(url=gifs.PunchGIFs[randint(0, len(gifs.PunchGIFs) - 1)])
-	await ctx.send(embed=emb)
+	await ctx.reply(embed=emb)
 	print(f'[Удар] Пользователь {ctx.message.author.display_name} ударил{c} {member.display_name}')
 
 ###############################################		reactions/messages	#############################################################
@@ -497,7 +504,7 @@ async def next_birthdays(ctx):
 		member = await Members[0].guild.fetch_member(mem[0][0])
 		descr += '{0}) **{1}** - {2} {3} (через {4} {5})\n'.format(i, member.display_name, int(mem[0][1][8::]), morph.parse(NameOfMonths[int(mem[0][1][5:7:])][0])[0].inflect({'gent'}).word, mem[1], w.make_agree_with_number(mem[1]).word)
 		i += 1
-	await ctx.send(embed=discord.Embed(description=descr, title='Ближайшие дни рождения', colour=discord.Colour.teal()))
+	await ctx.reply(embed=discord.Embed(description=descr, title='Ближайшие дни рождения', colour=discord.Colour.teal()))
 	print('Список следующих десяти дней рождений выведен успешно')
 
 @bot.command(aliases=['др', 'день_рождения', 'день-рождения'])
@@ -514,7 +521,7 @@ async def birthday (ctx, member:discord.Member):
 		month = morph.parse(NameOfMonths[int(bday[1][5:7:])][0])[0]
 		emb = discord.Embed(title='У {0} день рождения {1} {2} (будет через {3} {4})'.format(member.display_name, int(bday[1][8::]), month.inflect({'gent'}).word, days_left(bday), day.make_agree_with_number(days_left(bday)).word), colour=discord.Colour.random())
 		emb.set_image(url=member.avatar_url)
-	await ctx.send(embed=emb)
+	await ctx.reply(embed=emb)
 	print('[Получение дня рождения] День рождения получен успешно')
 
 ##############################################################		levels and stats 	#################################################################################
