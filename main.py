@@ -206,7 +206,7 @@ async def on_member_join(member):
 	await channel.send(f'Привет, {member.mention}. Добро пожаловать в нашу банду!')
 	cursor.execute("INSERT INTO levels (id, lvl, exp) VALUES (%s, 0, 0)", (member.id, ))
 	db.commit()
-	member.add_roles(utils.get(member.guild.roles, id=ids.titles[0]), utils.get(member.guild.roles, id=ids.TitleRole))
+	await member.add_roles(utils.get(member.guild.roles, id=ids.titles[0]), utils.get(member.guild.roles, id=ids.TitleRole))
 
 
 @bot.event
@@ -273,7 +273,8 @@ async def help(ctx, arg : str =''):
 	elif arg == 'other':
 		await ctx.reply(embed=discord.Embed(title='Другие команды', colour=discord.Colour.random(), description=\
 			'`!kiss <участник>` - поцеловать участника\
-			\n`!punch <участник>` - ударить участника'))
+			\n`!punch <участник>` - ударить участника\
+			\n`!ship <участник>` - проверить совместимость с участником'))
 		print('Помощь: [Успех] Пользователь {0.display_name} получил информацию по разделу Другое'.format(ctx.message.author))
 	elif arg == 'user_management' and str(ctx.message.author.top_role) == 'Админ':
 		await ctx.message.author.send(embed=discord.Embed(title='Управление пользователями', colour = discord.Colour.random(), description=\
@@ -396,6 +397,29 @@ async def punch(ctx, member:discord.Member):
 	emb.set_image(url=gifs.PunchGIFs[randint(0, len(gifs.PunchGIFs) - 1)])
 	await ctx.reply(embed=emb)
 	print(f'[Удар] Пользователь {ctx.message.author.display_name} ударил{c} {member.display_name}')
+
+@bot.command(aliases=['шип', 'совместимость'])
+async def ship(ctx, member:discord.Member):
+	percent = randint(0, 100)
+	if ctx.author == member:
+		percent = 100
+	rate = None
+	if percent < 20: 
+		rate = 'Несовместимы 😞'
+	elif percent < 40:
+		rate = 'Мало вероятно 😕'
+	elif percent < 60:
+		rate = 'Всё возможно 😉'
+	elif percent < 80:
+		rate = 'Хорошая пара 🥰'
+	elif percent < 100:
+		rate = 'Это любовь 💕'
+	elif percent == 100 and ctx.author == member:
+		rate = 'Каждый любит себя 😉'
+	else:
+		rate = 'Невероятно 💞'
+	lane = '▣'*(percent//5) + '☐'*(20 - percent//5)
+	await ctx.reply(content = f'💗 **СОВМЕСТИМОСТЬ** 💗\n🔻 `{ctx.author.display_name}`\n🔺 `{member.display_name}`', embed=discord.Embed(title = f'{ctx.author.display_name} + {member.display_name}', description = f'{percent}% {lane} {rate}', colour = discord.Colour.magenta()))
 
 ###############################################		reactions/messages	#############################################################
 
@@ -540,7 +564,7 @@ async def stats(ctx, member = None):
 	table = cursor.fetchall()
 	rank = table.index(info) + 1
 	lane = levels.exp_lane(info[2], info[1])
-	emb = discord.Embed(title=f'Уровень участника **{member.display_name}**', description=f'Уровень **{info[2]}**    Ранг **#{rank}**\n{lane} {info[1]}/{levels.levels_exp[info[2] + 1]} EXP')
+	emb = discord.Embed(title=f'Уровень участника **{member.display_name}**', description=f'Уровень **{info[2]}**    Ранг **#{rank}**\n{lane} {info[1]}/{levels.levels_exp[info[2] + 1]} EXP', colour = discord.Colour.random())
 	emb.set_thumbnail(url=member.avatar_url)
 	await ctx.reply(embed=emb)
 	print(f'[Статистика] Пользователь {ctx.message.author.display_name} получил статистику по пользователю {member.display_name}')
@@ -569,7 +593,7 @@ async def rating(ctx):
 			elif i == 3: supplement = ':third_place:'
 			description += f'{supplement}**#{i}.{person.display_name}**\n**Уровень:** {page[(i - 1) % 10][2]} | **Опыт:** {page[(i - 1)%10][1]}\n'
 			i += 1
-		embed = discord.Embed(title='🏆 Рейтинг участников', description=description)
+		embed = discord.Embed(title='🏆 Рейтинг участников', description=description, colour=discord.Colour.gold())
 		embed.set_thumbnail(url=Members[0].guild.icon_url)
 		embeds.append(embed)
 	message = await ctx.reply(embed=embeds[0])
