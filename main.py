@@ -53,14 +53,11 @@ def transform(wor, mode, person=None):
 	return ''
 
 async def give_xp(number:int, member:discord.Member):
-	print(f'Я в give_xp, number = {number}, member = {member.display_name}')
 	cursor.execute("UPDATE levels SET exp = exp + %s WHERE id = %s", (number, member.id))
 	db.commit()
 	cursor.execute("SELECT lvl, exp FROM levels WHERE id = %s", (member.id,))
 	cur_condition = cursor.fetchone()
-	print(f'Добавил exp, нынешнее состояние: exp = {cur_condition[1]}, lvl = {cur_condition[0]}')
 	dif = levels.check_level(cur_condition[0], cur_condition[1])
-	print(f'Вычислил разницу, она составляет {dif}')
 	if dif != 0:
 		cursor.execute("UPDATE levels SET lvl = lvl + %s WHERE id = %s", (dif, member.id))
 		db.commit()
@@ -69,6 +66,7 @@ async def give_xp(number:int, member:discord.Member):
 		await member.send(f'Хорошая работа, {member.mention}, ты достиг {cur_condition[0] + dif} уровня! Теперь твое звание - {new_role.name}')
 		await member.remove_roles(old_role)
 		await member.add_roles(new_role)
+		print(f'[Новый уровень] Пользователь {member.display_name} получил {cur_condition[0] + dif} уровень')
 
 ############################################	called once a day 	################################################
 
@@ -174,28 +172,28 @@ async def on_raw_reaction_add(payload):
 
 @bot.event
 async def on_raw_reaction_remove(payload):
-	channel = bot.get_channel(payload.channel_id) # получаем объект канала
-	message = await channel.fetch_message(payload.message_id) # получаем объект сообщения
-	member = utils.get(message.guild.members, id=payload.user_id) # получаем объект пользователя который поставил реакцию
+	channel = bot.get_channel(payload.channel_id)
+	message = await channel.fetch_message(payload.message_id)
+	member = utils.get(message.guild.members, id=payload.user_id)
 	if member.bot: return
 	if payload.message_id == get_roles.PostID1:
 		try:
-			emoji = str(payload.emoji) # эмоджик который выбрал юзер
-			role = utils.get(message.guild.roles, id=get_roles.Roles1[emoji]) # объект выбранной роли (если есть)
+			emoji = str(payload.emoji) 
+			role = utils.get(message.guild.roles, id=get_roles.Roles1[emoji])
 			await member.remove_roles(role)
-			print('Удаление роли: [Успех] Роль {1.name} была удалена у {0.display_name}'.format(member, role))
+			print('[Удаление роли] Роль {1.name} была удалена у {0.display_name}'.format(member, role))
 		except KeyError as e:
-			print('Удаление роли: [Ошибка] Не найдено роли для ' + emoji)
+			print('[Удаление роли] Не найдено роли для ' + emoji)
 		except Exception as e:
 			print(repr(e))
 	elif payload.message_id == get_roles.PostID2:
 		try:
-			emoji = str(payload.emoji) # эмоджик который выбрал юзер
-			role = utils.get(message.guild.roles, id=get_roles.Roles2[emoji]) # объект выбранной роли (если есть)
+			emoji = str(payload.emoji)
+			role = utils.get(message.guild.roles, id=get_roles.Roles2[emoji]) 
 			await member.remove_roles(role)
-			print('Удаление роли: [Успех] Роль {1.name} была удалена у {0.display_name}'.format(member, role))
+			print('[Удаление роли] Роль {1.name} была удалена у {0.display_name}'.format(member, role))
 		except KeyError as e:
-			print('Удаление роли: [Ошибка] Не найдено роли для ' + emoji)
+			print('[Удаление роли] Не найдено роли для ' + emoji)
 		except Exception as e:
 			print(repr(e))
 
@@ -207,22 +205,19 @@ async def on_member_join(member):
 	cursor.execute("INSERT INTO levels (id, lvl, exp) VALUES (%s, 0, 0)", (member.id, ))
 	db.commit()
 	await member.add_roles(utils.get(member.guild.roles, id=ids.titles[0]), utils.get(member.guild.roles, id=ids.TitleRole))
+	print(f'[Новый участник] У нас новый участник - {member.display_name}')
 
 
 @bot.event
 async def on_message(message):
-	print(f'Поступило сообщение: {message.content}. Автор: {message.author.display_name}')
 	if message.author.bot: return
 	author_id = message.author.id
 	cursor.execute("SELECT id FROM levels WHERE id = %s", (author_id,))
 	result = cursor.fetchone()
-	print(f'Я получил строчку из бд: {result}')
 	if not result:
-		print('Я в if not result')
 		cursor.execute("INSERT INTO levels (id, exp, lvl) VALUES (%s, 1, 1)", (author_id,))
 		db.commit()
 	else:
-		print('Я в else, хочу дать 1 exp')
 		await give_xp(1, message.author)
 	await bot.process_commands(message)
 
@@ -251,7 +246,7 @@ async def help(ctx, arg : str =''):
 			await ctx.message.author.send(embed=emb)
 		else:
 			await ctx.reply(embed=emb)
-		print('Помощь: [Успех] Пользователь {0.display_name} получил список возможной информации'.format(ctx.message.author))
+		print('[Помощь] Пользователь {0.display_name} получил список возможной информации'.format(ctx.message.author))
 	elif arg == 'birthdays':
 		if str(ctx.message.author.top_role) == 'Админ':
 			await ctx.message.author.send(embed=discord.Embed(title='Дни рождения', colour=discord.Colour.random(), \
@@ -262,20 +257,20 @@ async def help(ctx, arg : str =''):
 		else:
 			await ctx.reply(embed=discord.Embed(title='Дни рождения', colour=discord.Colour.random(), description='`!next_birthdays` - показывает ближайшие 10 дней рождений участников\
 				\n`!birthday <участник> - показывет день рождения участника'))
-		print('Помощь: [Успех] Пользователь {0.display_name} получил информацию по разделу Дни рождения'.format(ctx.message.author))
+		print('[Помощь] Пользователь {0.display_name} получил информацию по разделу Дни рождения'.format(ctx.message.author))
 	elif arg == 'messages' and str(ctx.message.author.top_role) == 'Админ':
 		await ctx.message.author.send(embed=discord.Embed(title='Сообщения и реакции', colour=discord.Colour.random(), \
 			description='`!write <сообщение>` - написать сообщение от имени бота\
 			\n`!react_to <ID> <эмодзи>` - добавить реакцию на пост с данным ID\
 			\n`!del_reaction <ID> <эмодзи>` - удаляет определённую реакцию с сообщения с данным ID\
 			\n`!clear <число>` - удаляет указанное количество сообщений в данном канале'))
-		print('Помощь: [Успех] Пользователь {0.display_name} получил информацию по разделу Сообщения и реакции'.format(ctx.message.author))
+		print('[Помощь] Пользователь {0.display_name} получил информацию по разделу Сообщения и реакции'.format(ctx.message.author))
 	elif arg == 'other':
 		await ctx.reply(embed=discord.Embed(title='Другие команды', colour=discord.Colour.random(), description=\
 			'`!kiss <участник>` - поцеловать участника\
 			\n`!punch <участник>` - ударить участника\
 			\n`!ship <участник>` - проверить совместимость с участником'))
-		print('Помощь: [Успех] Пользователь {0.display_name} получил информацию по разделу Другое'.format(ctx.message.author))
+		print('[Помощь] Пользователь {0.display_name} получил информацию по разделу Другое'.format(ctx.message.author))
 	elif arg == 'user_management' and str(ctx.message.author.top_role) == 'Админ':
 		await ctx.message.author.send(embed=discord.Embed(title='Управление пользователями', colour = discord.Colour.random(), description=\
 			'`!kick <участник>` - кикнуть участника\n\
@@ -284,16 +279,16 @@ async def help(ctx, arg : str =''):
 			`!unmute <участник>` - снимает запрет писать в текстовых каналах\n\
 			`!voice_unmute <участник>` - снимает запрет заходить на голосовые каналы и говорить там\n\
 			`!ban <участник>` - забанить участника'))
-		print('Помощь: [Успех] Пользователь {0.display_name} получил информацию по разделу Управление пользователями'.format(ctx.message.author))
+		print('[Помощь] Пользователь {0.display_name} получил информацию по разделу Управление пользователями'.format(ctx.message.author))
 	elif arg == 'stats':
 		await ctx.reply(embed=discord.Embed(title='Статистика пользователей', colour=discord.Colour.random(), description=\
 			'`!stats` - собственная статистика\n\
 			`!stats <участник>` - статистика участника\n\
 			`!rating` - рейтинг участников по уровням'))
-		print('Помощь: [Успех] Пользователь {0.display_name} получил информацию по разделу Статистика пользователей'.format(ctx.message.author))
+		print('[Помощь] Пользователь {0.display_name} получил информацию по разделу Статистика пользователей'.format(ctx.message.author))
 	else:
 		ctx.reply('Такой категории, как ' + arg + ' не существует')
-		print('Помощь: [Ошибка] Не существует категории {0}'.format(arg))
+		print('[Помощь] Ошибка: Не существует категории {0}'.format(arg))
 
 
 #############################################	kick, mute and ban #############################################
@@ -420,6 +415,7 @@ async def ship(ctx, member:discord.Member):
 		rate = 'Невероятно 💞'
 	lane = '▣'*(percent//5) + '☐'*(20 - percent//5)
 	await ctx.reply(content = f'💗 **СОВМЕСТИМОСТЬ** 💗\n🔻 `{ctx.author.display_name}`\n🔺 `{member.display_name}`', embed=discord.Embed(title = f'{ctx.author.display_name} + {member.display_name}', description = f'{percent}% {lane} {rate}', colour = discord.Colour.magenta()))
+	print(f'[Совместимость] Пользователь {ctx.author.display_name} шипперит себя с {member.display_name}')
 
 ###############################################		reactions/messages	#############################################################
 
@@ -446,7 +442,7 @@ async def react_to(ctx, msg_id, *, emoji_id):
 	await ctx.channel.purge(limit = 1)
 	message = await ctx.fetch_message(msg_id)
 	await message.add_reaction(emoji=emoji_id)
-	print('Добавление эмоции произошло успешно')
+	print('[Добавление эмоции] Добавление эмоции произошло успешно')
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -454,7 +450,7 @@ async def del_reaction(ctx, msg_id, emoji_id):
 	await ctx.channel.purge(limit=1)
 	message = await ctx.fetch_message(msg_id)
 	await message.clear_reaction(emoji_id)
-	print('Удаление эмоции произошло успешно')
+	print('[Удаление эмоции] Удаление эмоции произошло успешно')
 
 
 ##############################################		birthdays	#############################################################
@@ -463,14 +459,14 @@ async def del_reaction(ctx, msg_id, emoji_id):
 async def set_birthday(ctx, user:discord.Member, dat:str):
 	await ctx.channel.purge(limit = 1)
 	if len(dat) != 10:
-		print('Ошибка: Неверный формат даты рождения: длина даты != 10')
+		print('[Установка дня рождения] Ошибка: Неверный формат даты рождения: длина даты != 10')
 		await ctx.send(embed = discord.Embed(description='Произошла ошибка', title='Добавление дня рождения не удалось', colour=discord.Colour.red()))
 		return
 	day = None
 	try:
 		day = date(year = int(dat[:4:]), month = int(dat[5:7:]), day = int(dat[8::]))
 	except:
-		print('Ошибка: Неверный формат даты рождения')
+		print('[Установка дня рождения] Ошибка: Неверный формат даты рождения')
 		await ctx.send(embed = discord.Embed(description='Произошла ошибка', title='Добавление дня рождения не удалось', colour=discord.Colour.red()))
 		return
 	cursor.execute("SELECT id FROM birthdays WHERE id = %s", (user.id, ))
@@ -479,13 +475,13 @@ async def set_birthday(ctx, user:discord.Member, dat:str):
 		cursor.execute("INSERT INTO birthdays (id, birthday) VALUES (%s, %s)", (user.id, dat))
 		db.commit()
 	else:
-		print('Ошибка: Такой пользователь уже есть в базе данных')
+		print('[Установка дня рождения] Ошибка: Такой пользователь уже есть в базе данных')
 		await ctx.send(embed = discord.Embed(title='Произошла ошибка', description='Добавление дня рождения не удалось, т.к. у данного пользователя уже установлен день рождения. Чтобы изменить его, воспользуйтесь командой !change_birthday', colour=discord.Colour.red()))
 		return
 	left = days_left((user.id, dat))
 	w = morph.parse('день')[0]
 	await ctx.send(embed = discord.Embed(description='Я поздравлю **{0}** через {1} {2}'.format(user.display_name, left, w.make_agree_with_number(left).word), colour=discord.Colour.green(), title='Добавление дня рождения произошло успешно'))
-	print('Пользователю {0} установлен день рождения: {1}'.format(user.display_name, dat))
+	print('[Установка дня рождения] Пользователю {0} установлен день рождения: {1}'.format(user.display_name, dat))
 
 
 @bot.command()
@@ -493,14 +489,14 @@ async def set_birthday(ctx, user:discord.Member, dat:str):
 async def change_birthday(ctx, user: discord.Member, dat:str):
 	await ctx.channel.purge(limit = 1)
 	if len(dat) != 10:
-		print('Неверный формат даты рождения: длина даты != 10')
+		print('[Изменение дня рождения] Неверный формат даты рождения: длина даты != 10')
 		await ctx.send(embed = discord.Embed(title='Произошла ошибка', description='Изменение дня рождения не удалось', colour=discord.Colour.red()))
 		return
 	day = None
 	try:
 		day = date(year = int(dat[:4:]), month = int(dat[5:7:]), day = int(dat[8::]))
 	except:
-		print('Неверный формат даты рождения')
+		print('[Изменение дня рождения] Неверный формат даты рождения')
 		await ctx.send(embed = discord.Embed(title='Произошла ошибка', description='Изменение дня рождения не удалось', colour=discord.Colour.red()))
 		return
 	cursor.execute("SELECT id FROM birthdays WHERE id = %s", (user.id, ))
@@ -513,7 +509,7 @@ async def change_birthday(ctx, user: discord.Member, dat:str):
 	left = days_left((user.id, dat))
 	w = morph.parse('день')[0]
 	await ctx.send(embed=discord.Embed(description='Изменение дня рождения произошло успешно. Я поздравлю **{0}** через {1} {2}'.format(user.display_name, left, w.make_agree_with_number(left).word), title='Изменение дня рождения', colour=discord.Colour.green()))
-	print('Пользователю {0} установлен день рождения: {1}'.format(user.display_name, dat))
+	print('[Изменение дня рождения] Пользователю {0} установлен день рождения: {1}'.format(user.display_name, dat))
 
 @bot.command()
 async def next_birthdays(ctx):
@@ -529,7 +525,7 @@ async def next_birthdays(ctx):
 		descr += '{0}) **{1}** - {2} {3} (через {4} {5})\n'.format(i, member.display_name, int(mem[0][1][8::]), morph.parse(NameOfMonths[int(mem[0][1][5:7:])][0])[0].inflect({'gent'}).word, mem[1], w.make_agree_with_number(mem[1]).word)
 		i += 1
 	await ctx.reply(embed=discord.Embed(description=descr, title='Ближайшие дни рождения', colour=discord.Colour.teal()))
-	print('Список следующих десяти дней рождений выведен успешно')
+	print('[Следующие дни рождения] Список следующих десяти дней рождений выведен успешно')
 
 @bot.command(aliases=['др', 'день_рождения', 'день-рождения'])
 async def birthday (ctx, member:discord.Member):
@@ -550,7 +546,7 @@ async def birthday (ctx, member:discord.Member):
 
 ##############################################################		levels and stats 	#################################################################################
 
-@bot.command()
+@bot.command(aliases=['статистика', 'стат', 'rang', 'ранк'])
 async def stats(ctx, member = None):
 	if member is None:
 		member = ctx.message.author
@@ -569,9 +565,9 @@ async def stats(ctx, member = None):
 	await ctx.reply(embed=emb)
 	print(f'[Статистика] Пользователь {ctx.message.author.display_name} получил статистику по пользователю {member.display_name}')
 
-@bot.command()
+@bot.command(aliases=['top', 'топ', 'рейтинг'])
 async def rating(ctx):
-	cursor.execute("SELECT * FROM levels WHERE exp <> 0")
+	cursor.execute("SELECT * FROM levels WHERE exp <> 0 ORDER BY exp DESC")
 	rating = cursor.fetchall()
 	size = len(rating)
 	embeds = []
@@ -599,6 +595,7 @@ async def rating(ctx):
 	message = await ctx.reply(embed=embeds[0])
 	paginator = pag(bot, message, only=ctx.author, embeds=embeds, use_more=False)
 	await paginator.start()
+	print(f'[Рейтинг] Пользователь {ctx.author.display_name} успешно получил рейтинг пользователей')
 #############################################################################################
 
 bot.run(os.getenv('TOKEN'))
