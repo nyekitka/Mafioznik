@@ -513,7 +513,6 @@ async def change_birthday(ctx, user: discord.Member, dat:str):
 
 @bot.command()
 async def next_birthdays(ctx):
-	await ctx.channel.purge(limit = 1)
 	today = datetime.now(tz=msk)
 	cursor.execute("SELECT * FROM birthdays")
 	bdays = {i : days_left(i) for i in sorted(cursor.fetchall(),key=days_left)[:10:]}
