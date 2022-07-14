@@ -521,9 +521,13 @@ async def next_birthdays(ctx):
 	w = morph.parse("день")[0]
 	for mem in bdays.items():
 		member = await Members[0].guild.fetch_member(mem[0][0])
-		descr += '{0}) **{1}** - {2} {3} (через {4} {5})\n'.format(i, member.display_name, int(mem[0][1][8::]), morph.parse(NameOfMonths[int(mem[0][1][5:7:])][0])[0].inflect({'gent'}).word, mem[1], w.make_agree_with_number(mem[1]).word)
+		colour = next((x[0] for x in get_roles.Roles1.items() if utils.get(member.guild.roles, id=x[1]) in member.roles), None)
+		if colour is None: colour = ':white_circle:'
+		descr += '{6} **#{0} {1}**\n**День рождения: **{2} {3} (через {4} {5})\n'.format(i, member.display_name, int(mem[0][1][8::]), morph.parse(NameOfMonths[int(mem[0][1][5:7:])][0])[0].inflect({'gent'}).word, mem[1], w.make_agree_with_number(mem[1]).word, colour)
 		i += 1
-	await ctx.reply(embed=discord.Embed(description=descr, title='Ближайшие дни рождения', colour=discord.Colour.teal()))
+	emb = discord.Embed(description=descr, title='Ближайшие дни рождения 🎂', colour=discord.Colour.teal())
+	emb.set_thumbnail(url=Members[0].guild.icon_url)
+	await ctx.reply(embed=emb)
 	print('[Следующие дни рождения] Список следующих десяти дней рождений выведен успешно')
 
 @bot.command(aliases=['др', 'день_рождения', 'день-рождения'])
@@ -586,7 +590,10 @@ async def rating(ctx):
 			if i == 1: supplement = ':first_place:'
 			elif i ==2: supplement = ':second_place:'
 			elif i == 3: supplement = ':third_place:'
-			description += f'{supplement}**#{i}.{person.display_name}**\n**Уровень:** {page[(i - 1) % 10][2]} | **Опыт:** {page[(i - 1)%10][1]}\n'
+			else: 
+				supplement = next((x[0] for x in get_roles.Roles1.items() if utils.get(person.guild.roles, id=x[1]) in person.roles), None)
+				if supplement is None: supplement = ':white_circle:'
+			description += f'{supplement} **#{i}.{person.display_name}**\n**Уровень:** {page[(i - 1) % 10][2]} | **Опыт:** {page[(i - 1)%10][1]}\n'
 			i += 1
 		embed = discord.Embed(title='🏆 Рейтинг участников', description=description, colour=discord.Colour.gold())
 		embed.set_thumbnail(url=Members[0].guild.icon_url)
