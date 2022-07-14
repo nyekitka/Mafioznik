@@ -553,10 +553,13 @@ async def birthday (ctx, member:discord.Member):
 async def stats(ctx, member = None):
 	if member is None:
 		member = ctx.message.author
-	elif not isinstance(member, discord.Member):
-		print('[Статистика] Был передан неверный аргумент')
-		await ctx.reply('Неправильное использование команды. Для уточнения `!help stats`')
-		return
+	else:
+		try:
+			member = await Members[0].guild.fetch_member(int(member[2:-1:]))
+		except:
+			print('[Статистика] Был передан неверный аргумент')
+			await ctx.reply('Неправильное использование команды. Для уточнения `!help stats`')
+			return
 	cursor.execute("SELECT * FROM levels WHERE id = %s", (member.id, ))
 	info = cursor.fetchone()
 	cursor.execute("SELECT * FROM levels ORDER BY exp DESC")
