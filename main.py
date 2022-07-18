@@ -102,10 +102,10 @@ async def called_once_a_day():
 					desc = desc.replace('years', 'лет')
 					desc = desc.replace('rod', 'muzh')
 			if girl_role in member.roles:
-				gif = gifs.GirlsGIFs[randint(0, len(gifs.GirlsGIFs) - 1)]
+				gif = gifs.GirlsCongratsGIFs[randint(0, len(gifs.GirlsCongratsGIFs) - 1)]
 				desc = desc.replace('sex', 'она')
 			else:
-				gif = gifs.NeutralGIFs[randint(0, len(gifs.NeutralGIFs) - 1)]
+				gif = gifs.NeutralCongratsGIFs[randint(0, len(gifs.NeutralCongratsGIFs) - 1)]
 				desc = desc.replace('sex', 'он')
 			while '_' in desc:
 					k = desc.index('_')
