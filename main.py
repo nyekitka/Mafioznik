@@ -84,9 +84,9 @@ async def called_once_a_day():
 		elif int(line[1][8::]) == today.day and int(line[1][5:7:]) == today.month:
 			age = today.year - int(line[1][:4:])
 			member = await Members[0].guild.fetch_member(line[0])
-			channel = await bot.fetch_channel(birthday.Channel)
+			channel = await bot.fetch_channel(ids.BirthdayChannel)
 			await member.add_roles(bdrole, reason='У него/неё сегодня день рождения')
-			girl_role = utils.get(Members[0].guild.roles, id=birthday.GirlRole)
+			girl_role = utils.get(Members[0].guild.roles, id=ids.GirlRole)
 			desc = Greetings[randint(0, len(Greetings) - 1)]
 			desc = desc.replace('user', member.mention)
 			desc = desc.replace('age', str(age))
