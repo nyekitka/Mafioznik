@@ -75,53 +75,53 @@ async def called_once_a_day():
 	print('Ежедневная проверка событий: {0}'.format(str(datetime.now(tz=msk))))
 	today = datetime.now(tz=msk)
 	bdrole = utils.get(Members[0].guild.roles, id=ids.BirthdayRole)
-	cursor.execute("SELECT * FROM birthdays")
+	for mem in bdrole.members:
+		cursor.execute("SELECT id, birthday FROM birthdays WHERE id = %s", (mem.id,))
+		result = cursor.fetchone()
+		if result and result[1][5::] != today.strftime("%m-%d"):
+			await mem.remove_roles(bdrole, reason='Он/она больше не именниник')
+	cursor.execute("SELECT id, birthday FROM birthdays WHERE RIGHT(birthday, 5) = %s", (today.strftime("%m-%d"),))
 	data = cursor.fetchall()
 	for line in data:
-		if int(line[1][8::]) == (today - timedelta(days=1)).day and int(line[1][5:7:]) == (today - timedelta(days=1)).month:
-			member = await Members[0].guild.fetch_member(line[0])
-			await member.remove_roles(bdrole, reason='Он/она больше не именниник')
-		elif int(line[1][8::]) == today.day and int(line[1][5:7:]) == today.month:
-			age = today.year - int(line[1][:4:])
-			member = await Members[0].guild.fetch_member(line[0])
-			channel = await bot.fetch_channel(ids.BirthdayChannel)
-			await member.add_roles(bdrole, reason='У него/неё сегодня день рождения')
-			girl_role = utils.get(Members[0].guild.roles, id=ids.GirlRole)
-			desc = Greetings[randint(0, len(Greetings) - 1)]
-			desc = desc.replace('user', member.mention)
-			desc = desc.replace('age', str(age))
-			desc = desc.replace('month1', NameOfMonths[today.month][0])
-			desc = desc.replace('month2', NameOfMonths[today.month][1])
-			if 'years' in desc:
-				if age % 10 == 1 and a % 100 != 11:
-					desc = desc.replace('years', 'год')
-				elif age % 10 in [2, 3, 4] and a % 100 not in [12, 13, 14]:
-					desc = desc.replace('years', 'года')
-					desc = desc.replace('rod', 'zhen')
-				else:
-					desc = desc.replace('years', 'лет')
-					desc = desc.replace('rod', 'muzh')
-			if girl_role in member.roles:
-				gif = gifs.GirlsCongratsGIFs[randint(0, len(gifs.GirlsCongratsGIFs) - 1)]
-				desc = desc.replace('sex', 'она')
+		age = today.year - int(line[1][:4:])
+		member = await Members[0].guild.fetch_member(line[0])
+		channel = await bot.fetch_channel(ids.BirthdayChannel)
+		await member.add_roles(bdrole, reason='У него/неё сегодня день рождения')
+		girl_role = utils.get(Members[0].guild.roles, id=ids.GirlRole)
+		desc = Greetings[randint(0, len(Greetings) - 1)]
+		desc = desc.replace('user', member.mention)
+		desc = desc.replace('age', str(age))
+		desc = desc.replace('month1', NameOfMonths[today.month][0])
+		desc = desc.replace('month2', NameOfMonths[today.month][1])
+		if 'years' in desc:
+			if age % 10 == 1 and a % 100 != 11:
+				desc = desc.replace('years', 'год')
+			elif age % 10 in [2, 3, 4] and a % 100 not in [12, 13, 14]:
+				desc = desc.replace('years', 'года')
+				desc = desc.replace('rod', 'zhen')
 			else:
-				gif = gifs.NeutralCongratsGIFs[randint(0, len(gifs.NeutralCongratsGIFs) - 1)]
-				desc = desc.replace('sex', 'он')
-			while '_' in desc:
-					k = desc.index('_')
-					begin = k - 1
-					end = k + 1
-					while desc[begin] != ' ':
-						begin -= 1
-					while desc[end] != ' ':
-						end += 1
-					begin += 1
-					word = desc[begin:k:]
-
-					desc = desc.replace(desc[begin:end:], transform(word, desc[k + 1:end:]))
-			emb = discord.Embed(title='С днём рождения !', description=desc, colour=discord.Colour.random())
-			emb.set_image(url=gif)
-			await channel.send(embed=emb)
+				desc = desc.replace('years', 'лет')
+				desc = desc.replace('rod', 'muzh')
+		if girl_role in member.roles:
+			gif = gifs.GirlsCongratsGIFs[randint(0, len(gifs.GirlsCongratsGIFs) - 1)]
+			desc = desc.replace('sex', 'она')
+		else:
+			gif = gifs.NeutralCongratsGIFs[randint(0, len(gifs.NeutralCongratsGIFs) - 1)]
+			desc = desc.replace('sex', 'он')
+		while '_' in desc:
+			k = desc.index('_')
+			begin = k - 1
+			end = k + 1
+			while desc[begin] != ' ':
+				begin -= 1
+			while desc[end] != ' ':
+				end += 1
+			begin += 1
+			word = desc[begin:k:]
+			desc = desc.replace(desc[begin:end:], transform(word, desc[k + 1:end:]))
+		emb = discord.Embed(title='С днём рождения !', description=desc, colour=discord.Colour.random())
+		emb.set_image(url=gif)
+		await channel.send(embed=emb)
 
 
 #################################################	events	#################################################
@@ -298,6 +298,7 @@ async def help(ctx, arg : str =''):
 @commands.has_permissions(administrator=True)
 async def kick(ctx, member:discord.Member, reason=None):
 	await ctx.channel.purge(limit = 1)
+	cursor.execute("DELETE FROM birthdays WHERE id = %s", (member.id,))
 	await member.kick(reason = reason)
 	emb = discord.Embed(title=f'Пользователь {member.display_name} был кикнут с сервера по причине \"{reason}\"', colour=discord.Colour.random())
 	emb.set_image(url=gifs.KickGIFs[randint(0, len(gifs.KickGIFs) - 1)])
@@ -309,6 +310,8 @@ async def kick(ctx, member:discord.Member, reason=None):
 @commands.has_permissions(administrator=True)
 async def ban(ctx, member:discord.Member, reason=None):
 	await ctx.channel.purge(limit = 1)
+	cursor.execute("DELETE FROM birthdays WHERE id = %s", (member.id,))
+	cursor.execute("DELETE FROM levels WHERE id = %s", (member.id,))
 	await member.ban(reason = reason)
 	emb = discord.Embed(title=f'Пользователь {member.display_name} был забанен по причине \"{reason}\"', colour=discord.Colour.random())
 	emb.set_image(url=gifs.BanGIFs[randint(0, len(gifs.BanGIFs) - 1)])
@@ -523,7 +526,9 @@ async def next_birthdays(ctx):
 		member = await Members[0].guild.fetch_member(mem[0][0])
 		colour = next((x[0] for x in get_roles.Roles1.items() if utils.get(member.guild.roles, id=x[1]) in member.roles), None)
 		if colour is None: colour = ':white_circle:'
-		descr += '{6} **#{0} {1}**\n**День рождения: **{2} {3} (через {4} {5})\n'.format(i, member.display_name, int(mem[0][1][8::]), morph.parse(NameOfMonths[int(mem[0][1][5:7:])][0])[0].inflect({'gent'}).word, mem[1], w.make_agree_with_number(mem[1]).word, colour)
+		if mem[1] == 0: descr += '{4} **#{0} {1}**\n**День рождения: **{2} {3} (сегодня)\n'.format(i, member.display_name, int(mem[0][1][8::]), morph.parse(NameOfMonths[int(mem[0][1][5:7:])][0])[0].inflect({'gent'}).word, colour)
+		elif mem[1] == 1: descr += '{4} **#{0} {1}**\n**День рождения: **{2} {3} (завтра)\n'.format(i, member.display_name, int(mem[0][1][8::]), morph.parse(NameOfMonths[int(mem[0][1][5:7:])][0])[0].inflect({'gent'}).word, colour)
+		else: descr += '{6} **#{0} {1}**\n**День рождения: **{2} {3} (через {4} {5})\n'.format(i, member.display_name, int(mem[0][1][8::]), morph.parse(NameOfMonths[int(mem[0][1][5:7:])][0])[0].inflect({'gent'}).word, mem[1], w.make_agree_with_number(mem[1]).word, colour)
 		i += 1
 	emb = discord.Embed(description=descr, title='Ближайшие дни рождения 🎂', colour=discord.Colour.teal())
 	emb.set_thumbnail(url=Members[0].guild.icon_url)
@@ -542,7 +547,13 @@ async def birthday (ctx, member:discord.Member):
 		bday = bday[0]
 		day = morph.parse('день')[0]
 		month = morph.parse(NameOfMonths[int(bday[1][5:7:])][0])[0]
-		emb = discord.Embed(title='У {0} день рождения {1} {2} (будет через {3} {4})'.format(member.display_name, int(bday[1][8::]), month.inflect({'gent'}).word, days_left(bday), day.make_agree_with_number(days_left(bday)).word), colour=discord.Colour.random())
+		dleft = days_left(bday)
+		if dleft == 0:
+			emb = discord.Embed(title='У {0} день рождения {1} {2} (сегодня) :birthday:'.format(member.display_name, int(bday[1][8::]), month.inflect({'gent'}).word), colour=discord.Colour.random())
+		elif dleft == 1:
+			emb = discord.Embed(title='У {0} день рождения {1} {2} (завтра)'.format(member.display_name, int(bday[1][8::]), month.inflect({'gent'}).word), colour=discord.Colour.random())
+		else:
+			emb = discord.Embed(title='У {0} день рождения {1} {2} (будет через {3} {4})'.format(member.display_name, int(bday[1][8::]), month.inflect({'gent'}).word, days_left(bday), day.make_agree_with_number(days_left(bday)).word), colour=discord.Colour.random())
 		emb.set_image(url=member.avatar_url)
 	await ctx.reply(embed=emb)
 	print('[Получение дня рождения] День рождения получен успешно')
@@ -562,11 +573,15 @@ async def stats(ctx, member = None):
 			return
 	cursor.execute("SELECT * FROM levels WHERE id = %s", (member.id, ))
 	info = cursor.fetchone()
-	cursor.execute("SELECT * FROM levels ORDER BY exp DESC")
+	cursor.execute("SELECT * FROM levels WHERE exp <> 0 ORDER BY exp DESC")
 	table = cursor.fetchall()
-	rank = table.index(info) + 1
+	rank = '-'
+	try:
+		rank = '#' + str(table.index(info) + 1)
+	except:
+		pass
 	lane = levels.exp_lane(info[2], info[1])
-	emb = discord.Embed(title=f'Уровень участника **{member.display_name}**', description=f'Уровень **{info[2]}**    Ранг **#{rank}**\n{lane} {info[1]}/{levels.levels_exp[info[2] + 1]} EXP', colour = discord.Colour.random())
+	emb = discord.Embed(title=f'Уровень участника **{member.display_name}**', description=f'Уровень: **{info[2]}**    Ранг: **{rank}**\n{lane} {info[1]}/{levels.levels_exp[info[2] + 1]} EXP', colour = discord.Colour.random())
 	emb.set_thumbnail(url=member.avatar_url)
 	await ctx.reply(embed=emb)
 	print(f'[Статистика] Пользователь {ctx.message.author.display_name} получил статистику по пользователю {member.display_name}')
@@ -587,7 +602,8 @@ async def rating(ctx):
 			page = rating[:10:]
 			rating = rating[10::]
 		description = ''
-		while i % 10 != 0 and i <= size:
+		stop_num = i + 10
+		while i != stop_num and i <= size:
 			person = utils.get(ctx.message.guild.members, id=page[(i - 1)%10][0])
 			supplement = ''
 			if i == 1: supplement = ':first_place:'
