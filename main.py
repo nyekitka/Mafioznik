@@ -11,13 +11,12 @@ import pymorphy2
 import psycopg2
 import gifs, ids, levels, get_roles
 
-DB_URI = "postgres://wekhaeduhjfgdq:a818bfc043503eda3165d29c7ced0453f291eeaa4af82d16a9945e391dfa5e4a@ec2-52-49-120-150.eu-west-1.compute.amazonaws.com:5432/dc39934i40p5ji"
 intents = discord.Intents.default()
 intents.members = True
 msk = timezone(offset=timedelta(hours=3), name='МСК')
 bot = commands.Bot(command_prefix='!', intents=intents)
 morph = pymorphy2.MorphAnalyzer()
-db = psycopg2.connect(DB_URI, sslmode='require')
+db = psycopg2.connect(os.getenv('DATABASE_URL'), sslmode='require')
 cursor = db.cursor()
 
 
@@ -299,6 +298,7 @@ async def help(ctx, arg : str =''):
 async def kick(ctx, member:discord.Member, reason=None):
 	await ctx.channel.purge(limit = 1)
 	cursor.execute("DELETE FROM birthdays WHERE id = %s", (member.id,))
+	db.commit()
 	await member.kick(reason = reason)
 	emb = discord.Embed(title=f'Пользователь {member.display_name} был кикнут с сервера по причине \"{reason}\"', colour=discord.Colour.random())
 	emb.set_image(url=gifs.KickGIFs[randint(0, len(gifs.KickGIFs) - 1)])
@@ -312,6 +312,7 @@ async def ban(ctx, member:discord.Member, reason=None):
 	await ctx.channel.purge(limit = 1)
 	cursor.execute("DELETE FROM birthdays WHERE id = %s", (member.id,))
 	cursor.execute("DELETE FROM levels WHERE id = %s", (member.id,))
+	db.commit()
 	await member.ban(reason = reason)
 	emb = discord.Embed(title=f'Пользователь {member.display_name} был забанен по причине \"{reason}\"', colour=discord.Colour.random())
 	emb.set_image(url=gifs.BanGIFs[randint(0, len(gifs.BanGIFs) - 1)])
@@ -622,5 +623,11 @@ async def rating(ctx):
 	await paginator.start()
 	print(f'[Рейтинг] Пользователь {ctx.author.display_name} успешно получил рейтинг пользователей')
 #############################################################################################
+
+@bot.command(aliases=['give_xp'])
+@commands.has_permissions(administrator=True)
+def give_experience(member:discord.Member, number:int):
+	await give_xp(member, number)
+	print(f'[Выдача опыта] Пользователю {member.display_name} было успешно выдано {number} опыта')
 
 bot.run(os.getenv('TOKEN'))
