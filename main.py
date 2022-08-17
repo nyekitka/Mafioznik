@@ -626,8 +626,8 @@ async def rating(ctx):
 
 @bot.command(aliases=['give_xp'])
 @commands.has_permissions(administrator=True)
-def give_experience(member:discord.Member, number:int):
-	await give_xp(member, number)
+async def give_experience(member:discord.Member, number:int):
+	await give_xp(number, member)
 	print(f'[Выдача опыта] Пользователю {member.display_name} было успешно выдано {number} опыта')
 
 bot.run(os.getenv('TOKEN'))
